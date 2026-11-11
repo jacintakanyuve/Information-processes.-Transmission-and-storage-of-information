@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Интеллект-карта: Информационные процессы (10 класс)</title>
+    <style>
+        /* === Базовые настройки и тема Cyber Data === */
+        :root {
+            /* Темный градиент с фиолетово-синими тонами */
+            --bg-gradient: linear-gradient(135deg, #0b0914 0%, #161224 40%, #1a2a42 100%);
+            
+            /* Эффект стекла */
+            --node-bg: rgba(20, 25, 45, 0.4);
+            --node-border: rgba(100, 150, 255, 0.3);
+            --node-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --node-hover-bg: rgba(30, 40, 70, 0.6);
+            --node-hover-border: rgba(0, 255, 255, 0.8);
+            
+            /* Текст */
+            --text-main: #e2e8f0;
+            --text-title: #ffffff;
+            --text-accent: #00e5ff;
+            
+            /* Линии */
+            --line-color: rgba(0, 229, 255, 0.5);
+            
+            /* Цвета узлов */
+            --center-node-bg: rgba(0, 229, 255, 0.15);
+            --center-node-border: rgba(0, 229, 255, 0.6);
+            
+            --cat-transmit-bg: rgba(255, 0, 128, 0.15);
+            --cat-transmit-border: rgba(255, 0, 128, 0.5);
+            
+            --cat-storage-bg: rgba(138, 43, 226, 0.15);
+            --cat-storage-border: rgba(138, 43, 226, 0.5);
+            
+            --cat-coding-bg: rgba(0, 255, 128, 0.15);
+            --cat-coding-border: rgba(0, 255, 128, 0.5);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Анимация фона */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 229, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(255, 0, 128, 0.05) 0%, transparent 50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        header {
+            text-align: center;
+            padding: 25px 15px;
+            background: rgba(10, 10, 20, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 1.9rem;
+            color: var(--text-accent);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+        }
+
+        header p { font-size: 1.05rem; color: #94a3b8; }
+
+        /* === Контейнер Карты === */
+        #map-container {
+            position: relative;
+            flex: 1;
+            padding: 50px 20px 120px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            z-index: 5;
+        }
+
+        #connections {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        path.line {
+            fill: none;
+            stroke: var(--line-color);
+            stroke-width: 2.5px;
+            stroke-linecap: round;
+            filter: drop-shadow(0px 0px 4px var(--line-color));
+            stroke-dasharray: 1500;
+            stroke-dashoffset: 1500;
+            animation: drawLine 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes drawLine { to { stroke-dashoffset: 0; } }
+
+        /* === Узлы (Nodes) === */
+        .node {
+            position: relative;
+            z-index: 2;
+            background: var(--node-bg);
+            border: 1px solid var(--node-border);
+            box-shadow: var(--node-shadow);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            font-weight: 500;
+            user-select: none;
+            letter-spacing: 0.5px;
+        }
+
+        .node:hover {
+            transform: translateY(-5px) scale(1.02);
+            background: var(--node-hover-bg);
+            border-color: var(--node-hover-border);
+            box-shadow: 0 10px 30px rgba(0, 229, 255, 0.2), inset 0 0 15px rgba(0, 229, 255, 0.1);
+        }
+
+        .node:active { transform: translateY(-1px) scale(0.98); }
+
+        /* Уровни */
+        .node-center {
+            background: var(--center-node-bg);
+            border-color: var(--center-node-border);
+            font-size: 1.5rem;
+            padding: 22px 45px;
+            margin-bottom: 70px;
+            border-radius: 16px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.15);
+        }
+
+        .node-category {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            border-radius: 14px;
+            color: #fff;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        #cat-1 { background: var(--cat-transmit-bg); border-color: var(--cat-transmit-border); }
+        #cat-2 { background: var(--cat-storage-bg); border-color: var(--cat-storage-border); }
+        #cat-3 { background: var(--cat-coding-bg); border-color: var(--cat-coding-border); }
+
+        .node-item {
+            font-size: 0.95rem;
+            padding: 14px 18px;
+            width: 100%;
+            border-radius: 10px;
+            color: #cbd5e1;
+        }
+
+        /* Сетка */
+        .level-categories {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 50px;
+            width: 100%;
+        }
+
+        .branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 280px;
+            max-width: 320px;
+        }
+
+        .level-items {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            width: 100%;
+            align-items: center;
+        }
+
+        /* === Модальное окно === */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(5, 5, 10, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal-content {
+            background: rgba(15, 20, 35, 0.95);
+            padding: 35px;
+            border-radius: 16px;
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            width: 90%;
+            max-width: 550px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.8), inset 0 0 20px rgba(0, 229, 255, 0.05);
+            transform: translateY(30px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+        }
+
+        .modal-overlay.active .modal-content { transform: translateY(0) scale(1); }
+
+        .modal-close {
+            position: absolute;
+            top: 15px; right: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover { 
+            background: rgba(255, 50, 50, 0.2); 
+            color: #ff5555;
+            border-color: rgba(255, 50, 50, 0.5);
+        }
+
+        .modal-title {
+            color: var(--text-accent);
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            padding-right: 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        .modal-desc {
+            color: #e2e8f0;
+            line-height: 1.7;
+            font-size: 1.05rem;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 1024px) {
+            .level-categories { gap: 30px; }
+            .branch { min-width: 40%; }
+        }
+
+        @media (max-width: 768px) {
+            .level-categories { flex-direction: column; align-items: center; gap: 60px; }
+            .branch { width: 100%; max-width: 90%; }
+            #map-container { padding: 30px 10px 80px 10px; }
+            .node-center { font-size: 1.2rem; padding: 18px 25px; margin-bottom: 50px; }
+            .modal-content { padding: 25px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Информационные процессы</h1>
+        <p>Передача, хранение и обработка данных (Информатика, 10 класс)</p>
+    </header>
+
+    <div id="map-container">
+        <svg id="connections"></svg>
+    </div>
+
+    <!-- Модальное окно -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close-btn">&times;</button>
+            <h2 class="modal-title" id="modal-title">Заголовок</h2>
+            <div class="modal-desc" id="modal-desc">Описание...</div>
+        </div>
+    </div>
+
+    <script>
+        // === Данные Интеллект-карты ===
+        const mindMapData = {
+            id: "center",
+            title: "Передача и Хранение Информации",
+            desc: "Информационные процессы — это любые действия, выполняемые с информацией. В 10 классе мы детально изучаем физические и логические принципы передачи данных по сетям, а также технологии их надежного хранения и защиты.",
+            type: "center",
+            children: [
+                {
+                    id: "cat-1",
+                    title: "📡 Передача информации",
+                    desc: "Процесс перемещения данных в пространстве от источника к приемнику по каналам связи.",
+                    type: "category",
+                    children: [
+                        { id: "item-1-1", title: "Схема Клода Шеннона", desc: "Базовая модель связи: Источник -> Кодер -> Канал связи (подвержен шуму) -> Декодер -> Приемник. Описывает любой процесс коммуникации, от разговора людей до работы Wi-Fi." },
+                        { id: "item-1-2", title: "Каналы связи", desc: "Среда передачи сигнала. Бывают проводные (оптоволокно — свет, витая пара — ток) и беспроводные (Wi-Fi, Bluetooth, радиоволны, спутниковая связь)." },
+                        { id: "item-1-3", title: "Шум и Помехи", desc: "Искажения сигнала при передаче. Для борьбы с ними используют избыточное (помехоустойчивое) кодирование (например, коды Хэмминга), позволяющее приемнику самому исправить ошибку." },
+                        { id: "item-1-4", title: "Пропускная способность", desc: "Максимальная скорость передачи данных по каналу. Измеряется в бит/с (bps), Мбит/с. Вычисляется по формуле Хартли-Шеннона с учетом уровня шума." }
+                    ]
+                },
+                {
+                    id: "cat-2",
+                    title: "💾 Хранение информации",
+                    desc: "Процесс перемещения информации во времени. Требует физического носителя и логической структуры (файловой системы).",
+                    type: "category",
+                    children: [
+                        { id: "item-2-1", title: "Физические носители", desc: "Магнитные (HDD, ленты - запись намагничиванием), Оптические (CD, Blu-Ray - прожиг лазером), Полупроводниковые/Flash (SSD, флешки - заряд в транзисторах)." },
+                        { id: "item-2-2", title: "Файловые системы", desc: "Порядок организации данных на диске. Определяет, как файлы получают имена, где лежат физически и какие права доступа имеют. Примеры: NTFS (Windows), ext4 (Linux), APFS (macOS)." },
+                        { id: "item-2-3", title: "Облачные технологии", desc: "Хранение данных на распределенных серверах в ЦОД (Центрах Обработки Данных). Плюсы: доступ с любого устройства, надежность. Минусы: зависимость от интернета, вопросы конфиденциальности." },
+                        { id: "item-2-4", title: "Надежность и Backup", desc: "Резервное копирование защищает от потери данных. Золотое правило «3-2-1»: 3 копии данных, на 2 разных типах носителей, 1 копия хранится удаленно (вне дома/офиса)." }
+                    ]
+                },
+                {
+                    id: "cat-3",
+                    title: "🔐 Обработка для сети",
+                    desc: "Перед тем как сохранить или передать информацию, её необходимо подготовить: сжать для экономии места и зашифровать для безопасности.",
+                    type: "category",
+                    children: [
+                        { id: "item-3-1", title: "Сжатие без потерь (Архивация)", desc: "Поиск закономерностей и замена повторяющихся кусков кода на короткие маркеры (алгоритмы Хаффмана, LZ77). Распакованный файл бит-в-бит совпадает с оригиналом. Форматы: ZIP, RAR." },
+                        { id: "item-3-2", title: "Сжатие с потерями", desc: "Удаление избыточной информации, которую не воспринимают глаз или ухо человека (например, очень тихие звуки или близкие оттенки пикселей). Форматы: JPEG (фото), MP3 (звук), MP4 (видео)." },
+                        { id: "item-3-3", title: "Шифрование (Криптография)", desc: "Математическое изменение данных. Симметричное: один ключ для шифровки и расшифровки. Асимметричное (RSA): открытый ключ шифрует, закрытый (тайный) — расшифровывает." }
+                    ]
+                }
+            ]
+        };
+
+        const mapContainer = document.getElementById('map-container');
+        const svgCanvas = document.getElementById('connections');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        let connections = [];
+
+        // === Генерация DOM ===
+        function buildMap() {
+            const centerNode = createNodeElement(mindMapData);
+            mapContainer.appendChild(centerNode);
+
+            const branchesContainer = document.createElement('div');
+            branchesContainer.className = 'level-categories';
+            mapContainer.appendChild(branchesContainer);
+
+            mindMapData.children.forEach(category => {
+                const branchDiv = document.createElement('div');
+                branchDiv.className = 'branch';
+                
+                const categoryNode = createNodeElement(category);
+                branchDiv.appendChild(categoryNode);
+                
+                connections.push({ from: mindMapData.id, to: category.id, color: getComputedStyle(document.body).getPropertyValue('--line-color') });
+
+                const itemsContainer = document.createElement('div');
+                itemsContainer.className = 'level-items';
+
+                category.children.forEach(item => {
+                    const itemNode = createNodeElement(item, 'node-item');
+                    itemsContainer.appendChild(itemNode);
+                    // Для темной темы линии от категорий к элементам делаем чуть прозрачнее
+                    connections.push({ from: category.id, to: item.id, color: 'rgba(0, 229, 255, 0.25)' });
+                });
+
+                branchDiv.appendChild(itemsContainer);
+                branchesContainer.appendChild(branchDiv);
+            });
+        }
+
+        function createNodeElement(data, extraClass = '') {
+            const el = document.createElement('div');
+            el.className = `node ${data.type === 'center' ? 'node-center' : data.type === 'category' ? 'node-category' : extraClass}`;
+            el.id = data.id;
+            el.textContent = data.title;
+            el.addEventListener('click', () => openModal(data.title, data.desc));
+            return el;
+        }
+
+        // === Модальное окно ===
+        function openModal(title, desc) {
+            modalTitle.textContent = title;
+            modalDesc.textContent = desc;
+            modal.classList.add('active');
+        }
+
+        function closeModal() { modal.classList.remove('active'); }
+
+        modalCloseBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.classList.contains('active')) closeModal(); });
+
+        // === Отрисовка SVG ===
+        function drawLines() {
+            svgCanvas.innerHTML = '';
+            const containerRect = mapContainer.getBoundingClientRect();
+
+            connections.forEach(conn => {
+                const elFrom = document.getElementById(conn.from);
+                const elTo = document.getElementById(conn.to);
+                if (!elFrom || !elTo) return;
+
+                const rectFrom = elFrom.getBoundingClientRect();
+                const rectTo = elTo.getBoundingClientRect();
+
+                const startX = rectFrom.left + rectFrom.width / 2 - containerRect.left;
+                const startY = rectFrom.bottom - containerRect.top;
+
+                const endX = rectTo.left + rectTo.width / 2 - containerRect.left;
+                const endY = rectTo.top - containerRect.top;
+
+                const curvature = 0.4;
+                const cp1X = startX;
+                const cp1Y = startY + Math.abs(endY - startY) * curvature;
+                const cp2X = endX;
+                const cp2Y = endY - Math.abs(endY - startY) * curvature;
+
+                const pathData = `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("class", "line");
+                path.setAttribute("d", pathData);
+                if (conn.color) path.style.stroke = conn.color;
+
+                svgCanvas.appendChild(path);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            buildMap();
+            setTimeout(drawLines, 150); 
+        });
+
+        window.addEventListener('resize', () => { window.requestAnimationFrame(drawLines); });
+    </script>
+</body>
+</html>
